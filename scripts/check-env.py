@@ -17,6 +17,7 @@
 # under the License.
 
 import platform
+import shlex
 import subprocess
 import sys
 from typing import Callable, Optional, Set, Tuple
@@ -47,11 +48,15 @@ class Requirement:
 
     def get_version(self) -> Optional[str]:
         try:
-            version = subprocess.check_output(self.command, shell=True).decode().strip()  # noqa: S602
+            version = (
+                subprocess.check_output(shlex.split(self.command))  # noqa: S603
+                .decode()
+                .strip()
+            )
             if self.version_post_process:
                 version = self.version_post_process(version)
             return version.split()[-1]
-        except subprocess.CalledProcessError:
+        except (subprocess.CalledProcessError, FileNotFoundError):
             return None
 
     def check_version(self) -> str:
@@ -101,9 +106,8 @@ def get_cpu_info() -> str:
 def get_docker_platform() -> str:
     try:
         output = (
-            subprocess.check_output(  # noqa: S602
-                "docker info --format '{{.OperatingSystem}}'",  # noqa: S607
-                shell=True,  # noqa: S607
+            subprocess.check_output(  # noqa: S603
+                ["docker", "info", "--format", "{{.OperatingSystem}}"]  # noqa: S607
             )
             .decode()
             .strip()
@@ -111,7 +115,7 @@ def get_docker_platform() -> str:
         if "Docker Desktop" in output:
             return f"Docker Platform: {output} ({platform.system()})"
         return f"Docker Platform: {output}"
-    except subprocess.CalledProcessError:
+    except (subprocess.CalledProcessError, FileNotFoundError):
         return "Docker Platform: ❌ Not Detected"
 
 
